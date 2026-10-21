@@ -1,0 +1,55 @@
+---
+- name: Deploy Lab 4 Service automatically
+  hosts: lab4
+  become: yes
+  tasks:
+    - name: Ensure required packages are installed
+      apt:
+        name:
+          - git
+          - curl
+          - python3
+          - python3-venv
+        state: present
+        update_cache: yes
+    - name: Create directory for service html
+      file:
+        path: /opt/lab4-service/html
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+    - name: Create index.html with student surname only
+      copy:
+        content: "<html><body><h1>Yakovlev</h1></body></html>"
+        dest: /opt/lab4-service/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+    - name: Copy service.sh script from repository
+      copy:
+        src: scripts/service.sh
+        dest: /opt/lab4-service/service.sh
+        owner: www-data
+        group: www-data
+        mode: '0755'
+    - name: Copy systemd unit file from repository
+      copy:
+        src: systemd/lab4-service.service
+        dest: /etc/systemd/system/lab4-service.service
+        mode: '0644'
+    - name: Reload systemd, enable and start lab4-service
+      systemd:
+        name: lab4-service
+        daemon_reload: yes
+        state: started
+        enabled: yes
+    - name: Verify service availability (Healthcheck via URI)
+      uri:
+        url: http://127.0.0.1:8000/
+        status_code: 200
+      register: web_status
+    - name: Print verification message
+      debug:
+        msg: "Success! Web server is alive and returned HTTP 200."
+      when: web_status.status == 200
